@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>The Forest Boost</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<style>
+body { font-family: Arial; margin:0; background:#f4f4f4;}
+header { background:#2e7d32; color:white; padding:20px; text-align:center;}
+main { padding:20px;}
+table { width:100%; border-collapse: collapse; background:white;}
+th, td { border:1px solid #ccc; padding:8px;}
+th { background:#eee;}
+button { background:#2e7d32; color:white; border:none; padding:8px; cursor:pointer;}
+textarea, input, select { width:100%;}
+.gantt { margin-top:20px;}
+.bar { height:20px; background:#66bb6a; margin-bottom:10px;}
+.report { background:white; padding:15px; margin-top:20px;}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>🌿 The Forest Boost</h1>
+<p>Gestão colaborativa da obra</p>
+</header>
+
+<main>
+
+<button onclick="addTask()">Adicionar tarefa</button>
+
+<table>
+<thead>
+<tr>
+<th>Área</th>
+<th>Tarefa</th>
+<th>Status</th>
+<th>Comentários</th>
+<th>Ação</th>
+</tr>
+</thead>
+<tbody id="tasks"></tbody>
+</table>
+
+<div class="gantt" id="gantt"></div>
+
+<div class="report" id="report"></div>
+
+</main>
+
+<script>
+// 🔥 COLE AQUI O firebaseConfig DO SEU PROJETO
+const firebaseConfig = {
+  apiKey: "SUA_API_KEY",
+  authDomain: "SEU_PROJETO.firebaseapp.com",
+  projectId: "SEU_PROJETO",
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const ref = db.collection("tarefas");
+
+// IMPORTAÇÃO AUTOMÁTICA (1x)
+const tarefasIniciais = [
+  {area:"Fachada", nome:"Pintar fachada de verde"},
+  {area:"Fachada", nome:"Colocar letreiro"},
+  {area:"Área 1", nome:"Desmontar prateleiras"},
+  {area:"Área 1", nome:"Desmontar armário"},
+  {area:"Área 1", nome:"Pintar teto"},
+  {area:"Área 1", nome:"Pintar paredes"},
+  {area:"Área 2", nome:"Remover porta"},
+  {area:"Área 2", nome:"Remover prateleiras"},
+  {area:"Área 2", nome:"Construir gabinete da pia"},
+  {area:"Restauração", nome:"Lixar e envernizar gabinetes"},
+  {area:"Mudança", nome:"Transportar equipamentos"},
+  {area:"Imóvel antigo", nome:"Remover drywall"}
+];
+
+ref.get().then(snap=>{
+  if(snap.empty){
+    tarefasIniciais.forEach(t=>{
+      ref.add({area:t.area, nome:t.nome, status:"Não iniciado", comentario:""});
+    });
+  }
+});
+
+ref.onSnapshot(render);
+
+function render(snapshot){
+  let html="";
+  let done=0;
+  snapshot.forEach(doc=>{
+    const t=doc.data();
+    if(t.status==="Concluído") done++;
+    const p = t.status==="Concluído"?100:t.status==="Em andamento"?60:30;
+    html+=`
+    <tr>
+      <td>${t.area}</td>
+      <td>${t.nome}</td>
+      <td>
+        <select onchange="update('${doc.id}',this.value,'status')">
+          <option ${t.status=="Não iniciado"?"selected":""}>Não iniciado</option>
+          <option ${t.status=="Em andamento"?"selected":""}>Em andamento</option>
+          <option ${t.status=="Concluído"?"selected":""}>Concluído</option>
+        </select>
+      </td>
+      <td><textarea onchange="update('${doc.id}',this.value,'comentario')">${t.comentario}</textarea></td>
+      <td><button onclick="del('${doc.id}')">X</button></td>
+    </tr>
+    <div class="bar" style="width:${p}%"></div>
+    `;
+  });
+  document.getElementById("tasks").innerHTML=html;
+  document.getElementById("report").innerHTML=
+    `Total: ${snapshot.size} | Concluídas: ${done} | Progresso: ${Math.round(done/snapshot.size*100)}%`;
+}
+
+function addTask(){
+  const nome=prompt("Nome da tarefa:");
+  const area=prompt("Área:");
+  if(nome && area){
+    ref.add({nome,area,status:"Não iniciado",comentario:""});
+  }
+}
+
+function update(id,val,field){
+  ref.doc(id).update({[field]:val});
+}
+
+function del(id){
+  ref.doc(id).delete();
+}
+</script>
+
+</body>
+</html>
